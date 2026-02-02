@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // ハッシュ化されたパスワード
+  name      String?
+  role      String   @default("user") // "user" or "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reports    Report[]
+  recipients Recipient[]
+
+  @@map("users")
+}
+
+model Report {
+  id                              String   @id @default(uuid())
+  userId                          String
+  visitDate                       String   // YYYY-MM-DD
+  clinicName                      String
+  prefecture                      String
+  city                            String
+  visitedClinicWebsiteUrl         String?
+  visitedClinicChairCount         Int?
+  visitedClinicStaffCount         Int?
+  visitedClinicNewPatientsPerMonth Int?
+  visitedClinicSelfPayRate       Float?
+  visitedClinicRecallCount        Int?
+  visitedClinicInsurancePointsPerMonth Int?
+  visitedClinicStrengths          String   // JSON配列として保存
+  myClinicName                    String?
+  myClinicWebsiteUrl              String?
+  impressivePoints                String   @default("")
+  actionItems                     String   @default("[]") // JSON配列として保存
+  pdfData                         String? // Base64エンコードされたPDFデータ
+  isCompleted                     Boolean  @default(false)
+  version                         Int      @default(1) // 楽観的ロック用
+  shareToken                      String? @unique // 認証不要の共有リンク用トークン
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+  @@index([userId])
+  @@index([visitDate])
+  @@index([shareToken])
+}
+
+model Recipient {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("recipients")
+  @@index([userId])
+  @@unique([userId, email])
+}

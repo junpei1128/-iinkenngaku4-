@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>localStorageデータエクスポート</title>
+  <style>
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', 'MS PGothic', sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #0066cc;
+      padding-bottom: 10px;
+    }
+    button {
+      background-color: #0066cc;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background-color: #0052a3;
+    }
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      font-family: monospace;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .info {
+      background-color: #e7f3ff;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>localStorageデータエクスポート</h1>
+    <div class="info">
+      <p>このページを使用して、ブラウザのlocalStorageに保存されているデータをエクスポートできます。</p>
+      <p>エクスポートしたJSONファイルを <code>server/data.json</code> として保存し、移行スクリプトを実行してください。</p>
+    </div>
+    
+    <button onclick="exportData()">データをエクスポート</button>
+    <button onclick="copyToClipboard()">クリップボードにコピー</button>
+    
+    <h2>エクスポートされたデータ:</h2>
+    <textarea id="output" readonly></textarea>
+    
+    <h2>データ統計:</h2>
+    <div id="stats"></div>
+  </div>
+
+  <script>
+    function exportData() {
+      try {
+        const reports = JSON.parse(localStorage.getItem('dentist_reports') || '[]');
+        const recipients = JSON.parse(localStorage.getItem('dentist_recipients') || '[]');
+        
+        const data = {
+          reports,
+          recipients,
+          exportedAt: new Date().toISOString(),
+        };
+        
+        const json = JSON.stringify(data, null, 2);
+        document.getElementById('output').value = json;
+        
+        // 統計を表示
+        document.getElementById('stats').innerHTML = `
+          <p>レポート数: ${reports.length}件</p>
+          <p>通知先数: ${recipients.length}件</p>
+          <p>エクスポート日時: ${new Date().toLocaleString('ja-JP')}</p>
+        `;
+        
+        // ファイルをダウンロード
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'localStorage-export.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        alert('データをエクスポートしました！');
+      } catch (error) {
+        alert('エクスポートエラー: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    function copyToClipboard() {
+      const textarea = document.getElementById('output');
+      textarea.select();
+      document.execCommand('copy');
+      alert('クリップボードにコピーしました！');
+    }
+    
+    // ページ読み込み時にデータを表示
+    window.onload = function() {
+      try {
+        const reports = JSON.parse(localStorage.getItem('dentist_reports') || '[]');
+        const recipients = JSON.parse(localStorage.getItem('dentist_recipients') || '[]');
+        
+        document.getElementById('stats').innerHTML = `
+          <p>現在のlocalStorageデータ:</p>
+          <p>レポート数: ${reports.length}件</p>
+          <p>通知先数: ${recipients.length}件</p>
+        `;
+      } catch (error) {
+        console.error(error);
+      }
+    };
+  </script>
+</body>
+</html>
