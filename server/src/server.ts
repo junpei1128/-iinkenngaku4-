@@ -33,7 +33,7 @@ const allowedOrigins = [
   'https://iinkenngaku4.vercel.app',
   process.env.FRONTEND_URL,
   'http://localhost:5185',
-].filter(Boolean);
+].filter((x): x is string => typeof x === 'string');
 
 app.use(cors({
   origin: allowedOrigins.length ? allowedOrigins : 'http://localhost:5185',
