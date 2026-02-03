@@ -28,9 +28,15 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:./')) 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS設定（フロントエンドからのリクエストを許可）
+// CORS設定（フロントエンドからのリクエストを許可・複数オリジン対応）
+const allowedOrigins = [
+  'https://iinkenngaku4.vercel.app',
+  process.env.FRONTEND_URL,
+  'http://localhost:5185',
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5185',
+  origin: allowedOrigins.length ? allowedOrigins : 'http://localhost:5185',
   credentials: true,
 }));
 
