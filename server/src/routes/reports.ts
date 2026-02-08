@@ -36,6 +36,28 @@ const ensureSimpleAuthUser = async (user: any): Promise<string> => {
   return user.userId;
 };
 
+// 未ログイン時のレポート作成用ゲストユーザーを確保するヘルパー
+const GUEST_USER_ID = 'guest-user';
+const ensureGuestUser = async (): Promise<string> => {
+  let dbUser = await prisma.user.findUnique({
+    where: { id: GUEST_USER_ID },
+  });
+  if (!dbUser) {
+    console.log('ゲストユーザーをデータベースに作成します');
+    dbUser = await prisma.user.create({
+      data: {
+        id: GUEST_USER_ID,
+        email: 'guest@example.com',
+        password: 'guest-placeholder',
+        name: 'ゲスト',
+        role: 'user',
+      },
+    });
+    console.log('ゲストユーザーを作成しました:', dbUser.id);
+  }
+  return dbUser.id;
+};
+
 // 認証不要の共有エンドポイント（認証ミドルウェアの前に配置）
 router.get('/shared/:token', async (req: express.Request, res: express.Response) => {
   try {
@@ -280,11 +302,8 @@ router.get('/:id', optionalAuthenticate, async (req: express.Request, res: expre
   }
 });
 
-// 以降のエンドポイント（作成・更新・削除）は認証が必要
-router.use(authenticate);
-
-// レポート作成
-router.post('/', async (req: express.Request, res: express.Response) => {
+// レポート作成（認証不要：未ログイン時はゲストユーザーに紐づける）
+router.post('/', optionalAuthenticate, async (req: express.Request, res: express.Response) => {
   try {
     const user = (req as any).user;
     const reportData = req.body;
@@ -318,8 +337,10 @@ router.post('/', async (req: express.Request, res: express.Response) => {
       return num === null ? null : Math.floor(num);
     };
 
-    // 簡易認証モードの場合、データベースにユーザーが存在するか確認し、存在しない場合は作成
-    const actualUserId = await ensureSimpleAuthUser(user);
+    // ログイン済みならそのユーザー、未ログインならゲストユーザーに紐づける
+    const actualUserId = user
+      ? await ensureSimpleAuthUser(user)
+      : await ensureGuestUser();
 
     const report = await prisma.report.create({
       data: {
@@ -406,8 +427,8 @@ router.post('/', async (req: express.Request, res: express.Response) => {
   }
 });
 
-// レポート更新（楽観的ロック付き）
-router.put('/:id', async (req: express.Request, res: express.Response) => {
+// レポート更新（楽観的ロック付き）（認証不要：未ログイン時はゲストのレポートのみ編集可）
+router.put('/:id', optionalAuthenticate, async (req: express.Request, res: express.Response) => {
   try {
     const user = (req as any).user;
     const { id } = req.params;
@@ -418,8 +439,10 @@ router.put('/:id', async (req: express.Request, res: express.Response) => {
       return res.status(400).json({ error: 'バージョン情報が必要です' });
     }
 
-    // 簡易認証モードの場合、データベースにユーザーが存在するか確認し、存在しない場合は作成
-    const actualUserId = await ensureSimpleAuthUser(user);
+    // ログイン済みならそのユーザー、未ログインならゲストユーザーのレポートのみ編集可
+    const actualUserId = user
+      ? await ensureSimpleAuthUser(user)
+      : await ensureGuestUser();
 
     // 現在のレポートを取得
     const currentReport = await prisma.report.findFirst({
@@ -535,14 +558,16 @@ router.put('/:id', async (req: express.Request, res: express.Response) => {
   }
 });
 
-// レポート削除
-router.delete('/:id', async (req: express.Request, res: express.Response) => {
+// レポート削除（認証不要：未ログイン時はゲストのレポートのみ削除可）
+router.delete('/:id', optionalAuthenticate, async (req: express.Request, res: express.Response) => {
   try {
     const user = (req as any).user;
     const { id } = req.params;
-    const actualUserId = await ensureSimpleAuthUser(user);
+    const actualUserId = user
+      ? await ensureSimpleAuthUser(user)
+      : await ensureGuestUser();
 
-    // レポートが存在し、ユーザーが所有しているか確認
+    // レポートが存在し、当該ユーザー（またはゲスト）が所有しているか確認
     const report = await prisma.report.findFirst({
       where: {
         id,

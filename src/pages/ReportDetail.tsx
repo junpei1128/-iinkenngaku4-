@@ -270,13 +270,13 @@ export const ReportDetail = () => {
       const errorMessage = error.message || 'レポートの保存に失敗しました';
       
       // 認証エラーの場合はログインページにリダイレクト
+      // 認証エラーでもログインへは飛ばさない（未ログインで保存可能なため、バナーのみ表示）
       if (errorMessage.includes('認証') || 
           errorMessage.includes('無効なトークン') || 
           errorMessage.includes('トークン') ||
           errorMessage.includes('401') ||
           errorMessage.includes('認証が必要')) {
-        alert('ログインが必要です。ログインページに移動します。');
-        navigate('/login', { replace: true });
+        setPageError('レポートの保存に失敗しました。もう一度お試しください。');
         return null;
       }
       
