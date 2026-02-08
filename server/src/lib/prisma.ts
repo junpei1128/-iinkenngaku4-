@@ -46,53 +46,49 @@ export const prisma =
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // データベーススキーマの自動マイグレーション（shareTokenカラムの追加）
+// 本番はPostgreSQL・マイグレーションで管理するため、古いDBの互換用のみ実行
+// file: のときだけ SQLite、それ以外は PostgreSQL として扱う（本番・未設定時は PostgreSQL）
 async function ensureShareTokenColumn() {
+  const url = (process.env.DATABASE_URL || '').trim();
+  const isSqlite = url.startsWith('file:');
+
   try {
-    // SQLiteでテーブル情報を取得
-    const tableInfo = await prisma.$queryRaw<Array<{ name: string }>>`
-      PRAGMA table_info(reports);
-    `;
-    
-    // shareTokenカラムが存在するか確認
-    const hasShareToken = tableInfo.some((col: any) => col.name === 'shareToken');
-    
-    if (!hasShareToken) {
-      console.log('shareTokenカラムが存在しないため、追加します...');
-      
-      // shareTokenカラムを追加
-      await prisma.$executeRaw`
-        ALTER TABLE "reports" ADD COLUMN "shareToken" TEXT;
+    if (isSqlite) {
+      // SQLite のみ PRAGMA を使用（file: で始まる場合だけ）
+      const tableInfo = await prisma.$queryRaw<Array<{ name: string }>>`PRAGMA table_info(reports);`;
+      const hasShareToken = tableInfo.some((col: any) => col.name === 'shareToken');
+      if (!hasShareToken) {
+        console.log('shareTokenカラムが存在しないため、追加します...');
+        await prisma.$executeRaw`ALTER TABLE "reports" ADD COLUMN "shareToken" TEXT;`;
+        try {
+          await prisma.$executeRaw`CREATE UNIQUE INDEX "reports_shareToken_key" ON "reports"("shareToken");`;
+        } catch (e: any) {
+          if (!e.message?.includes('already exists')) console.warn('shareTokenユニークインデックス作成失敗:', e.message);
+        }
+        try {
+          await prisma.$executeRaw`CREATE INDEX "reports_shareToken_idx" ON "reports"("shareToken");`;
+        } catch (e: any) {
+          if (!e.message?.includes('already exists')) console.warn('shareTokenインデックス作成失敗:', e.message);
+        }
+        console.log('shareTokenカラムを追加しました');
+      }
+    } else {
+      // PostgreSQL（postgresql:// または未設定・本番は必ずここ）
+      const rows = await prisma.$queryRaw<Array<{ column_name: string }>>`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'reports' AND column_name = 'shareToken';
       `;
-      
-      // ユニークインデックスを作成（NULL値は除外できないため、条件付きインデックスは使用しない）
-      try {
-        await prisma.$executeRaw`
-          CREATE UNIQUE INDEX "reports_shareToken_key" ON "reports"("shareToken");
-        `;
-      } catch (error: any) {
-        // インデックスが既に存在する場合は無視
-        if (!error.message?.includes('already exists')) {
-          console.warn('shareTokenユニークインデックスの作成に失敗:', error.message);
-        }
+      const hasShareToken = rows.length > 0;
+      if (!hasShareToken) {
+        console.log('shareTokenカラムが存在しないため、追加します...');
+        await prisma.$executeRawUnsafe('ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "shareToken" TEXT;');
+        await prisma.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS "reports_shareToken_key" ON "reports"("shareToken");');
+        await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "reports_shareToken_idx" ON "reports"("shareToken");');
+        console.log('shareTokenカラムを追加しました');
       }
-      
-      // 通常のインデックスを作成
-      try {
-        await prisma.$executeRaw`
-          CREATE INDEX "reports_shareToken_idx" ON "reports"("shareToken");
-        `;
-      } catch (error: any) {
-        // インデックスが既に存在する場合は無視
-        if (!error.message?.includes('already exists')) {
-          console.warn('shareTokenインデックスの作成に失敗:', error.message);
-        }
-      }
-      
-      console.log('shareTokenカラムを追加しました');
     }
   } catch (error: any) {
     console.error('データベーススキーマチェックエラー:', error);
-    // エラーが発生しても続行（既にカラムが存在する可能性がある）
   }
 }
 
