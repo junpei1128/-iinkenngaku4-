@@ -50,9 +50,11 @@ const apiRequest = async <T>(
       timestamp: new Date().toISOString(),
     });
     
-    // ブラウザのコンソールで確認できるように、より詳細な情報を提供
     if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
-      const errorMsg = `サーバーに接続できません。バックエンドサーバー（${API_BASE_URL}）が起動しているか確認してください。\n\n確認方法:\n1. PowerShellで .\\check-backend-status.ps1 を実行\n2. ブラウザで ${API_BASE_URL}/health にアクセス\n3. サーバーログを確認`;
+      const isRender = API_BASE_URL.includes('onrender.com');
+      const errorMsg = isRender
+        ? 'サーバーに接続できません。しばらく待ってから再読み込みしてください。（無料プランではサーバーがスリープすることがあります）'
+        : `サーバーに接続できません。バックエンド（${API_BASE_URL}）が起動しているか確認してください。`;
       throw new Error(errorMsg);
     }
     throw new Error(`ネットワークエラー: ${fetchError instanceof Error ? fetchError.message : '不明なエラー'}`);

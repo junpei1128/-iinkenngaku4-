@@ -52,6 +52,8 @@ export const ReportDetail = () => {
 
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [isCompleted, setIsCompleted] = useState(false);
+  /** 画面を塞がないエラー表示用（スマホで入力内容が見えるように） */
+  const [pageError, setPageError] = useState<string | null>(null);
 
   // フォームデータを更新するヘルパー関数
   const updateFormDataFromReport = (report: Report) => {
@@ -97,9 +99,8 @@ export const ReportDetail = () => {
             navigate('/login', { replace: true });
             return;
           }
-          
-          alert(`レポートの読み込みに失敗しました\n\n${errorMessage}`);
-          navigate('/reports');
+          // alert ではなくバナー表示（スマホでフォームが隠れないように）
+          setPageError(`レポートの読み込みに失敗しました。${errorMessage}`);
         }
       }
     };
@@ -120,7 +121,11 @@ export const ReportDetail = () => {
       }
     } catch (healthError: any) {
       console.error('バックエンド接続チェック失敗:', healthError);
-      alert(`バックエンドサーバーに接続できません。\n\n確認事項:\n1. バックエンドサーバーが起動しているか確認\n2. PowerShellで .\\check-backend-status.ps1 を実行\n3. ブラウザで ${API_BASE_URL}/health にアクセス`);
+      const isProduction = import.meta.env.PROD && API_BASE_URL.includes('onrender.com');
+      const msg = isProduction
+        ? 'サーバーに接続できません。無料プランでは一定時間でスリープします。30秒ほど待ってから「再読み込み」してください。'
+        : `バックエンドサーバーに接続できません。確認: 1) サーバー起動 2) ${API_BASE_URL}/health にアクセス`;
+      setPageError(msg);
       return null;
     }
     
@@ -287,16 +292,11 @@ export const ReportDetail = () => {
         return null;
       }
       
-      // サーバー接続エラーの場合、より詳細な情報を表示
-      if (errorMessage.includes('サーバーに接続できません') || 
-          errorMessage.includes('バックエンドサーバー') ||
-          errorMessage.includes('ネットワークエラー')) {
-        const detailedMessage = `レポートの保存に失敗しました\n\n${errorMessage}\n\n確認事項:\n1. バックエンドサーバーが起動しているか確認してください\n2. ブラウザで http://localhost:3001 にアクセスできるか確認してください\n3. PowerShellウィンドウでバックエンドサーバーのログを確認してください`;
-        alert(detailedMessage);
-      } else {
-        // その他のエラー
-        alert(`レポートの保存に失敗しました\n\n${errorMessage}`);
-      }
+      const isProduction = import.meta.env.PROD && (errorMessage.includes('onrender.com') || errorMessage.includes('サーバーに接続できません'));
+      const displayMsg = isProduction
+        ? 'レポートの保存に失敗しました。サーバーがスリープ中の可能性があります。しばらく待ってから再度お試しください。'
+        : `レポートの保存に失敗しました。${errorMessage}`;
+      setPageError(displayMsg);
       return null;
     }
   };
@@ -545,13 +545,45 @@ export const ReportDetail = () => {
             {isCompleted ? 'レポート閲覧' : (isEdit ? 'レポート編集' : 'レポート作成')}
           </h2>
 
+          {pageError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-red-800 text-sm flex-1">{pageError}</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => navigate('/reports')}
+                  className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-100 rounded hover:bg-red-200"
+                >
+                  一覧に戻る
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPageError(null)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                  aria-label="閉じる"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          )}
+
           {isCompleted && (
             <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
               <p className="font-bold">このレポートは完了済みのため編集できません</p>
             </div>
           )}
 
-          <form onSubmit={handleComplete} className="bg-white shadow-md rounded-lg px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-8 mb-4">
+          <form
+            onSubmit={handleComplete}
+            onFocus={(e) => {
+              const el = e.target as HTMLElement;
+              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              }
+            }}
+            className="bg-white shadow-md rounded-lg px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-8 mb-4"
+          >
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="visitDate">
                 見学日 <span className="text-red-500">*</span>

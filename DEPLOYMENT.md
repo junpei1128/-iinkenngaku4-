@@ -2,10 +2,12 @@
 
 ## 概要
 
-このシステムは以下の構成でデプロイできます：
+このシステムは **PostgreSQL** をデータベースとして使用します（本番・ローカル共通）。以下の構成でデプロイできます：
 
 - **フロントエンド**: Vercel（推奨）またはその他の静的ホスティング
 - **バックエンド**: Railway または Render（PostgreSQL付き）
+
+ローカル開発時も PostgreSQL が必要です（例: `docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres`）。
 
 ## 前提条件
 
@@ -89,10 +91,23 @@ git push -u origin main
 
 ### 5. 初回ユーザーの作成
 
-デプロイ後、初回ユーザーを作成する必要があります：
+デプロイ後、初回ユーザーを作成する必要があります。
+
+**方法A: スクリプトで作成（推奨）**
+
+Railway/Render のシェルやローカルで `DATABASE_URL` を本番の PostgreSQL URL に設定して実行：
 
 ```bash
-# Railway/Renderのコンソールで実行、またはローカルから実行
+cd server
+# 環境変数に本番の DATABASE_URL が設定されている状態で
+npx tsx scripts/create-initial-user.ts
+```
+
+`INITIAL_EMAIL` / `INITIAL_PASSWORD` / `INITIAL_NAME` でアカウントを指定できます（未設定時はスクリプト内のデフォルト値）。
+
+**方法B: 登録APIを叩く**
+
+```bash
 curl -X POST https://your-backend-url/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{

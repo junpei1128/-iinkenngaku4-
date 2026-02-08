@@ -13,14 +13,15 @@ const envPath = join(serverDir, '.env');
 // 環境変数を読み込む
 dotenv.config({ path: envPath });
 
-// DATABASE_URLが設定されていない場合はデフォルト値を設定
+// DATABASE_URLが設定されていない場合はエラー（本番はPostgreSQL必須）
 if (!process.env.DATABASE_URL) {
-  // 相対パスを絶対パスに変換
-  const dbPath = resolve(serverDir, 'dev.db');
-  process.env.DATABASE_URL = `file:${dbPath}`;
+  console.error('エラー: DATABASE_URL が設定されていません。');
+  console.error('  - 本番: server/.env に PostgreSQL の接続URL（postgresql://...）を設定してください。');
+  console.error('  - ローカル: PostgreSQL を起動し、DATABASE_URL を設定するか、Docker 等で用意してください。');
+  process.exit(1);
 }
 
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
+console.log('DATABASE_URL:', process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@')); // パスワード部分はマスク
 
 const prisma = new PrismaClient();
 

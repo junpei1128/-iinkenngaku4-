@@ -1,17 +1,19 @@
 -- CreateTable
 CREATE TABLE "users" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "name" TEXT,
     "role" TEXT NOT NULL DEFAULT 'user',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "reports" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "visitDate" TEXT NOT NULL,
     "clinicName" TEXT NOT NULL,
@@ -21,7 +23,7 @@ CREATE TABLE "reports" (
     "visitedClinicChairCount" INTEGER,
     "visitedClinicStaffCount" INTEGER,
     "visitedClinicNewPatientsPerMonth" INTEGER,
-    "visitedClinicSelfPayRate" REAL,
+    "visitedClinicSelfPayRate" DOUBLE PRECISION,
     "visitedClinicRecallCount" INTEGER,
     "visitedClinicInsurancePointsPerMonth" INTEGER,
     "visitedClinicStrengths" TEXT NOT NULL,
@@ -32,20 +34,22 @@ CREATE TABLE "reports" (
     "pdfData" TEXT,
     "isCompleted" BOOLEAN NOT NULL DEFAULT false,
     "version" INTEGER NOT NULL DEFAULT 1,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "reports_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "recipients" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "recipients_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "recipients_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -62,3 +66,9 @@ CREATE INDEX "recipients_userId_idx" ON "recipients"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "recipients_userId_email_key" ON "recipients"("userId", "email");
+
+-- AddForeignKey
+ALTER TABLE "reports" ADD CONSTRAINT "reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "recipients" ADD CONSTRAINT "recipients_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
