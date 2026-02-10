@@ -94,7 +94,8 @@ router.get('/shared/:token', async (req: express.Request, res: express.Response)
       return num === null ? null : Math.floor(num);
     };
 
-    // JSON文字列をパース
+    // JSON文字列をパース（pdfData は除外して OOM 防止）
+    const { pdfData: _pdfShared, ...reportWithoutPdf } = report;
     const visitedClinicStrengths = report.visitedClinicStrengths 
       ? JSON.parse(report.visitedClinicStrengths) 
       : [];
@@ -105,7 +106,7 @@ router.get('/shared/:token', async (req: express.Request, res: express.Response)
     res.json({
       success: true,
       report: {
-        ...report,
+        ...reportWithoutPdf,
         visitedClinicChairCount: ensureInteger(report.visitedClinicChairCount),
         visitedClinicStaffCount: ensureInteger(report.visitedClinicStaffCount),
         visitedClinicNewPatientsPerMonth: ensureInteger(report.visitedClinicNewPatientsPerMonth),
@@ -183,8 +184,9 @@ router.get('/', optionalAuthenticate, async (req: express.Request, res: express.
       return num === null ? null : Math.floor(num);
     };
 
-    // JSON文字列をパースして返す（エラーハンドリング付き）
+    // JSON文字列をパースして返す（pdfData は除外して OOM 防止）
     const parsedReports = reports.map(report => {
+      const { pdfData: _pdf, ...reportWithoutPdf } = report;
       let visitedClinicStrengths: string[] = [];
       let actionItems: any[] = [];
       try {
@@ -204,7 +206,7 @@ router.get('/', optionalAuthenticate, async (req: express.Request, res: express.
         actionItems = [];
       }
       return {
-        ...report,
+        ...reportWithoutPdf,
         visitedClinicChairCount: ensureInteger(report.visitedClinicChairCount),
         visitedClinicStaffCount: ensureInteger(report.visitedClinicStaffCount),
         visitedClinicNewPatientsPerMonth: ensureInteger(report.visitedClinicNewPatientsPerMonth),
@@ -282,10 +284,12 @@ router.get('/:id', optionalAuthenticate, async (req: express.Request, res: expre
       actionItems = [];
     }
 
+    // pdfData は除外して OOM 防止（必要ならクライアントで generateReportPDF を使用）
+    const { pdfData: _pdf, ...reportWithoutPdf } = report;
     res.json({
       success: true,
       report: {
-        ...report,
+        ...reportWithoutPdf,
         visitedClinicChairCount: ensureInteger(report.visitedClinicChairCount),
         visitedClinicStaffCount: ensureInteger(report.visitedClinicStaffCount),
         visitedClinicNewPatientsPerMonth: ensureInteger(report.visitedClinicNewPatientsPerMonth),

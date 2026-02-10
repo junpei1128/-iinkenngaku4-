@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { reportApi } from '../utils/api';
-import { normalizeBase64PDF } from '../utils/pdf';
+import { normalizeBase64PDF, generateReportPDF } from '../utils/pdf';
 import type { Report } from '../types';
 
 export const ReportShared = () => {
@@ -273,17 +273,16 @@ export const ReportShared = () => {
               </div>
             )}
 
-            {/* PDFダウンロード */}
-            {report.pdfData && (
-              <div className="pt-4">
-                <button
-                  onClick={async () => {
-                    try {
-                      console.log('=== PDFダウンロード開始（共有ページ） ===');
-                      console.log('レポートID:', report.id);
-                      
-                      // Base64データの検証と正規化
-                      let pdfData: string;
+            {/* PDFダウンロード（APIでpdfDataを返さない場合はクライアントで生成） */}
+            <div className="pt-4">
+              <button
+                onClick={async () => {
+                  try {
+                    console.log('=== PDFダウンロード開始（共有ページ） ===');
+                    console.log('レポートID:', report.id);
+
+                    let pdfData: string;
+                    if (report.pdfData) {
                       try {
                         pdfData = normalizeBase64PDF(report.pdfData);
                         console.log('Base64データの検証成功（長さ:', pdfData.length, '）');
@@ -291,8 +290,12 @@ export const ReportShared = () => {
                         console.error('Base64データの検証エラー:', normError);
                         throw new Error(`PDFデータの形式が正しくありません: ${normError.message}`);
                       }
-                      
-                      // Base64データをBlobに変換
+                    } else {
+                      console.log('PDFデータが無いため、クライアントで生成します');
+                      pdfData = await generateReportPDF(report);
+                    }
+
+                    // Base64データをBlobに変換
                       let blob: Blob;
                       try {
                         const binaryString = atob(pdfData);
@@ -331,12 +334,11 @@ export const ReportShared = () => {
                       alert(`PDFのダウンロードに失敗しました\n\n${error.message || '不明なエラー'}`);
                     }
                   }}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                >
-                  PDFをダウンロード
-                </button>
-              </div>
-            )}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                PDFをダウンロード
+              </button>
+            </div>
           </div>
         </div>
       </div>
