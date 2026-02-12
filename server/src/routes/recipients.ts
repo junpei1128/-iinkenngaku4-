@@ -43,7 +43,8 @@ router.get('/', async (req: express.Request, res: express.Response) => {
   try {
     const user = (req as any).user;
     const actualUserId = await ensureSimpleAuthUser(user);
-    
+
+    // 通知先件数に上限は設けない（無制限）。take/limit は使わない。
     const recipients = await prisma.recipient.findMany({
       where: { userId: actualUserId },
       orderBy: { createdAt: 'desc' },

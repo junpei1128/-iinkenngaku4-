@@ -123,45 +123,27 @@ router.get('/shared/:token', async (req: express.Request, res: express.Response)
   }
 });
 
-// レポート一覧取得（認証不要、認証されている場合はユーザーのレポートのみ表示）
+// レポート一覧取得（認証の有無にかかわらず全レポートを返す＝全員で共有）
 router.get('/', optionalAuthenticate, async (req: express.Request, res: express.Response) => {
   try {
     const user = (req as any).user;
-    
-    // 認証されている場合はユーザーのレポートのみ、認証されていない場合は全レポート
-    let whereClause: any = {};
-    let actualUserId: string | null = null;
-    
+    // ログイン・未ログイン問わず全レポートを返す（別PC・ゲストで作成したレポートも一覧に表示）
+    const whereClause: any = {};
+
     if (user) {
-      try {
-        actualUserId = await ensureSimpleAuthUser(user);
-        whereClause = { userId: actualUserId };
-        
-        // デバッグログ: 一覧取得時の認証情報とフィルタ条件を記録
-        console.log('=== レポート一覧取得 ===');
-        console.log('認証ユーザー:', user.userId);
-        console.log('actualUserId:', actualUserId);
-        console.log('フィルタ条件:', whereClause);
-      } catch (ensureError: any) {
-        // ensureSimpleAuthUser が失敗した場合、認証ユーザーとして扱わない（空配列を返す）
-        console.error('ensureSimpleAuthUser エラー:', ensureError);
-        console.log('認証ユーザーの処理に失敗したため、空のリストを返します');
-        whereClause = { userId: '__invalid_user__' }; // 存在しないユーザーIDでフィルタして空配列を返す
-        actualUserId = null;
-      }
+      console.log('=== レポート一覧取得（認証あり・全件表示） ===');
+      console.log('認証ユーザー:', user.userId);
     } else {
-      console.log('=== レポート一覧取得（認証なし） ===');
-      console.log('認証されていないため、全レポートを取得');
+      console.log('=== レポート一覧取得（認証なし・全件表示） ===');
     }
-    
+
     const reports = await prisma.report.findMany({
       where: whereClause,
       orderBy: { visitDate: 'desc' },
     });
-    
-    // デバッグログ: 取得件数を記録
+
     console.log('取得レポート件数:', reports.length);
-    if (reports.length > 0 && actualUserId) {
+    if (reports.length > 0) {
       console.log('最初のレポートID:', reports[0].id, 'userId:', reports[0].userId);
     }
     console.log('========================');
@@ -225,21 +207,13 @@ router.get('/', optionalAuthenticate, async (req: express.Request, res: express.
   }
 });
 
-// レポート詳細取得（認証不要、認証されている場合はユーザーのレポートのみ表示）
+// レポート詳細取得（認証の有無にかかわらずIDで取得＝全員で共有）
 router.get('/:id', optionalAuthenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const user = (req as any).user;
     const { id } = req.params;
 
-    // 認証されている場合はユーザーのレポートのみ、認証されていない場合は全レポート
-    let whereClause: any = { id };
-    if (user) {
-      const actualUserId = await ensureSimpleAuthUser(user);
-      whereClause = { id, userId: actualUserId };
-    }
-
     const report = await prisma.report.findFirst({
-      where: whereClause,
+      where: { id },
     });
 
     if (!report) {

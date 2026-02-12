@@ -114,6 +114,7 @@ export const RecipientRegister = () => {
     return { valid: true };
   };
 
+  // 通知先は無制限。件数制限は行わない。
   const handleAdd = () => {
     const newRecipient: Recipient = {
       id: crypto.randomUUID(),
